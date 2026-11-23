@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Activation Friction Score — Free SaaS Signup Audit</title>
+<meta name="description" content="Paste your SaaS signup URL to get your Activation Friction Score out of 100 and your top 5 fixes. No login required." />
+
+<!-- PDF engine: html2pdf.js bundles html2canvas + jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel-2: #1c2230;
+    --border: #2a3140;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #3fb950;
+    --accent-dim: #238636;
+    --warn: #d29922;
+    --danger: #f85149;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 16px;
+  }
+  .wrap { width: 100%; max-width: 720px; }
+
+  h1 { font-size: 28px; margin: 0 0 8px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin: 0 0 28px; font-size: 15px; }
+
+  /* ---------- Landing form (URL → Email → Audit, stacked) ---------- */
+  #url-form { display: flex; flex-direction: column; gap: 10px; }
+  #url-form input {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 15px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    outline: none;
+    transition: border 0.15s;
+  }
+  #url-form input:focus { border-color: var(--accent); }
+  #url-form input.error { border-color: var(--danger); }
+  #url-form button { width: 100%; }
+
+  .err-msg { color: var(--danger); font-size: 13px; margin-top: 8px; display: none; }
+  .privacy-note { color: var(--muted); font-size: 12px; margin-top: 12px; }
+
+  button {
+    cursor: pointer;
+    font: inherit;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    padding: 14px 22px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  button:hover { background: #232b3b; }
+  button.primary { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: var(--accent); }
+  button.ghost { background: transparent; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ---------- Quiz ---------- */
+  #quiz, #result { display: none; }
+  .q {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+  .q-label { font-weight: 600; margin-bottom: 4px; font-size: 15px; }
+  .q-help { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .opt {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 14px; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--panel-2); cursor: pointer; font-size: 14px;
+    user-select: none; transition: all 0.12s;
+  }
+  .opt:hover { border-color: #3a4256; }
+  .opt input { display: none; }
+  .opt.active { border-color: var(--accent); background: rgba(63,185,80,0.12); color: #fff; }
+
+  .actions { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+
+  /* ---------- Result dashboard (this element is exported to PDF) ---------- */
+  #dashboard-result {
+    background: #ffffff;
+    color: #0d1117;
+    border-radius: 18px;
+    padding: 32px;
+    border: 1px solid #d0d7de;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .dash-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; flex-wrap: wrap;
+    border-bottom: 1px solid #e5e9ef; padding-bottom: 18px; margin-bottom: 22px;
+  }
+  .dash-title { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: #57606a; font-weight: 700; }
+  .dash-domain { font-size: 20px; font-weight: 700; margin-top: 4px; word-break: break-all; }
+  .dash-date { font-size: 12px; color: #8c959f; margin-top: 2px; }
+
+  .score-block { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; margin-bottom: 26px; }
+  .score-num { font-size: 64px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+  .score-num small { font-size: 24px; color: #8c959f; font-weight: 600; }
+  .score-meta { flex: 1; min-width: 200px; }
+  .badge {
+    display: inline-block; padding: 4px 12px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .badge.good { background: #dafbe1; color: #1a7f37; }
+  .badge.mid { background: #fff8c5; color: #7d4e00; }
+  .badge.bad { background: #ffebe9; color: #cf222e; }
+  .bar { height: 12px; background: #eaeef2; border-radius: 999px; margin-top: 10px; overflow: hidden; }
+  .bar > div { height: 100%; border-radius: 999px; transition: width 0.6s ease; }
+
+  .fixes-title { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: #57606a; font-weight: 700; margin-bottom: 12px; }
+  .fix { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px dashed #e5e9ef; font-size: 14.5px; }
+  .fix:last-child { border-bottom: none; }
+  .fix-num {
+    flex: 0 0 26px; height: 26px; border-radius: 50%;
+    background: #0d1117; color: #fff; font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .fix-text strong { display: block; margin-bottom: 2px; }
+  .fix-text span { color: #57606a; font-size: 13px; }
+
+  .cta {
+    margin-top: 26px; padding: 16px 18px;
+    background: #0d1117; color: #fff; border-radius: 12px;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .cta p { margin: 0; font-size: 14px; }
+  .cta a { color: #3fb950; font-weight: 700; text-decoration: none; border-bottom: 1px solid rgba(63,185,80,0.4); }
+  .footer-note { margin-top: 18px; font-size: 11px; color: #8c959f; text-align: center; }
+
+  .pdf-hide { display: none !important; }
+
+  @media (max-width: 520px) {
+    #dashboard-result { padding: 22px; }
+    .score-num { font-size: 52px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- ========== STEP 1: LANDING ========== -->
+  <section id="landing">
+    <h1>Paste your SaaS signup URL to get your Activation Friction Score.</h1>
+    <p class="sub">7 checkpoints. One score out of 100. Your top 5 fixes. No login required.</p>
+
+    <form id="url-form" novalidate>
+      <input id="url-input" type="url" placeholder="https://yoursaas.com/signup" autocomplete="url" required />
+      <input id="email-input" type="email" placeholder="Enter email to get PDF" autocomplete="email" required />
+      <button type="submit" class="primary">Audit →</button>
+    </form>
+    <p id="url-err" class="err-msg">Please enter a valid URL, e.g. https://yoursaas.com/signup</p>
+    <p id="email-err" class="err-msg">Please enter a valid email address.</p>
+    <p class="privacy-note">We'll send the PDF report to this email. No spam.</p>
+  </section>
+
+  <!-- ========== STEP 2: QUIZ ========== -->
+  <section id="quiz">
+    <h1>Confirm your 7 checkpoints</h1>
+    <p class="sub">We detected <strong id="quiz-domain"></strong>. Answer 7 quick questions so we can score the flow accurately.</p>
+
+    <div id="questions"></div>
+
+    <div class="actions">
+      <button type="button" class="ghost" id="back-btn">← Back</button>
+      <button type="button" class="primary" id="score-btn" disabled>Calculate my score</button>
+    </div>
+  </section>
+
+  <!-- ========== STEP 3: RESULT ========== -->
+  <section id="result">
+    <!-- This is the element exported to PDF -->
+    <div id="dashboard-result">
+      <div class="dash-head">
+        <div>
+          <div class="dash-title">Activation Friction Score</div>
+          <div class="dash-domain" id="dash-domain"></div>
+          <div class="dash-date" id="dash-date"></div>
+        </div>
+        <div class="badge" id="dash-badge">—</div>
+      </div>
+
+      <div class="score-block">
+        <div class="score-num" id="dash-score">0<small>/100</small></div>
+        <div class="score-meta">
+          <div class="bar"><div id="dash-bar" style="width:0%;background:#3fb950;"></div></div>
+          <div style="margin-top:8px;font-size:13px;color:#57606a;" id="dash-verdict"></div>
+        </div>
+      </div>
+
+      <div class="fixes-title">Top 5 fixes</div>
+      <div id="dash-fixes"></div>
+
+      <div class="cta">
+        <p>Want me to fix these for you? <strong>Reply to the email.</strong></p>
+        <a id="mailto-link" href="#">Reply now →</a>
+      </div>
+
+      <!-- FIX #2: Branding updated -->
+      <div class="footer-note">
+        Generated by Activation Friction Score · Cockamamie Aerouant
+      </div>
+    </div>
+
+    <div class="actions pdf-hide">
+      <button class="primary" id="download-btn">⤓ Download PDF</button>
+      <button class="ghost" id="restart-btn">Start over</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* =========================================================
+   1. THE 7 ALA CHECKPOINTS  (Activation Leak Audit)
+   ========================================================= */
+const CHECKPOINTS = [
+  {
+    id: "formFieldLoad", weight: 20,
+    label: "Form field load",
+    help: "How many required fields are on the signup form beyond email + password?",
+    options: [
+      { text: "None (just email + password)", level: 0 },
+      { text: "1–2 extra fields", level: 0.5 },
+      { text: "3 or more extra fields", level: 1 }
+    ],
+    fixTitle: "Cut required fields to 3 or fewer",
+    fixDetail: "Every extra field drops completion ~7%. Move company name, role, and team size to post-activation onboarding."
+  },
+  {
+    id: "authAlternatives", weight: 15,
+    label: "Authentication alternatives",
+    help: "Do you offer Google / Microsoft / SSO sign-in?",
+    options: [
+      { text: "Yes, Google + at least one more", level: 0 },
+      { text: "Yes, Google only", level: 0.5 },
+      { text: "No, email/password only", level: 1 }
+    ],
+    fixTitle: "Add Google + Microsoft SSO",
+    fixDetail: "SSO removes password creation entirely. For B2B SaaS, Google SSO alone lifts signup completion by 15–25%."
+  },
+  {
+    id: "emailVerification", weight: 15,
+    label: "Email verification wall",
+    help: "Must users verify their email before they experience value?",
+    options: [
+      { text: "No verification, or verification after value", level: 0 },
+      { text: "Soft prompt, not blocking", level: 0.5 },
+      { text: "Yes, hard wall before first value", level: 1 }
+    ],
+    fixTitle: "Move email verification after first value",
+    fixDetail: "Verification walls add 5–10% drop-off. Let users into the product first, then prompt verification when they save or share."
+  },
+  {
+    id: "creditCardGate", weight: 20,
+    label: "Credit-card gate",
+    help: "Is a credit card required before the user reaches the core value?",
+    options: [
+      { text: "No card required to start", level: 0 },
+      { text: "Card required, but with a free trial", level: 0.5 },
+      { text: "Card required immediately, no trial", level: 1 }
+    ],
+    fixTitle: "Remove the credit-card gate from signup",
+    fixDetail: "Card-before-value is the #1 activation killer for free trials. Move the card to the end of the trial or the upgrade step."
+  },
+  {
+    id: "ttfv", weight: 15,
+    label: "Time to first value (TTFV)",
+    help: "How many steps between signup and the first meaningful product action?",
+    options: [
+      { text: "Under 60 seconds / 1–2 steps", level: 0 },
+      { text: "2–5 minutes / 3–5 steps", level: 0.5 },
+      { text: "Over 5 minutes / 6+ steps", level: 1 }
+    ],
+    fixTitle: "Compress time-to-first-value to under 60 seconds",
+    fixDetail: "Count the clicks from 'signed up' to the moment the user feels the product work. Remove or defer every step in between."
+  },
+  {
+    id: "trustSignals", weight: 5,
+    label: "Trust signals",
+    help: "Are social proof and security badges visible above the fold?",
+    options: [
+      { text: "Yes, logos + a security badge", level: 0 },
+      { text: "Some, but below the fold", level: 0.5 },
+      { text: "None visible", level: 1 }
+    ],
+    fixTitle: "Add social proof above the fold",
+    fixDetail: "Place customer logos, a security badge (SOC 2 / GDPR), and a one-line testimonial near the signup button."
+  },
+  {
+    id: "passwordCaptcha", weight: 10,
+    label: "Password & CAPTCHA friction",
+    help: "How strict are your password rules, and is a CAPTCHA shown?",
+    options: [
+      { text: "Lenient rules, no CAPTCHA", level: 0 },
+      { text: "Strict rules or a CAPTCHA", level: 0.5 },
+      { text: "Strict rules AND a CAPTCHA", level: 1 }
+    ],
+    fixTitle: "Loosen password rules and hide the CAPTCHA",
+    fixDetail: "Strict password rules + visible CAPTCHA add measurable friction. Use SSO to bypass passwords, and use invisible CAPTCHA."
+  }
+];
+
+/* =========================================================
+   2. STATE
+   ========================================================= */
+const state = {
+  url: "",
+  domain: "",
+  email: "",
+  answers: {}
+};
+
+/* =========================================================
+   3. DOM REFS
+   ========================================================= */
+const $ = (id) => document.getElementById(id);
+const landing = $("landing");
+const quizEl = $("quiz");
+const resultEl = $("result");
+const urlForm = $("url-form");
+const urlInput = $("url-input");
+const emailInput = $("email-input");
+const urlErr = $("url-err");
+const emailErr = $("email-err");
+const questionsEl = $("questions");
+const scoreBtn = $("score-btn");
+const backBtn = $("back-btn");
+const downloadBtn = $("download-btn");
+const restartBtn = $("restart-btn");
+
+/* =========================================================
+   4. HELPERS
+   ========================================================= */
+function parseUrl(raw) {
+  let s = raw.trim();
+  if (!s) return null;
+  if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+  try {
+    const u = new URL(s);
+    if (!u.hostname.includes(".")) return null;
+    return u;
+  } catch {
+    return null;
+  }
+}
+
+function isValidEmail(s) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+
+/* =========================================================
+   5. LEAD CAPTURE  (FormSubmit.co — free, unlimited, no backend)
+   - First submission triggers a one-time confirmation email to
+     lifepowersource@gmail.com. Click the link once, then all
+     future submissions flow through automatically.
+   ========================================================= */
+async function captureEmail(email, url) {
+  try {
+    await fetch("https://formsubmit.co/ajax/lifepowersource@gmail.com", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        email: email,
+        signup_url: url,
+        source: "Activation Friction Score",
+        _subject: "New lead from Activation Friction Score",
+        _template: "table",
+        _captcha: "false"
+      })
+    });
+  } catch (e) {
+    // Non-blocking: never prevent the user from using the tool
+    console.warn("Lead capture failed (non-blocking):", e);
+  }
+}
+
+/* =========================================================
+   6. RENDER QUIZ
+   ========================================================= */
+function renderQuiz() {
+  questionsEl.innerHTML = "";
+  CHECKPOINTS.forEach((cp, i) => {
+    const q = document.createElement("div");
+    q.className = "q";
+    q.innerHTML = `
+      <div class="q-label">${i + 1}. ${cp.label}</div>
+      <div class="q-help">${cp.help}</div>
+      <div class="opts" data-cp="${cp.id}"></div>
+    `;
+    const opts = q.querySelector(".opts");
+    cp.options.forEach((opt) => {
+      const label = document.createElement("label");
+      label.className = "opt";
+      label.innerHTML = `<input type="radio" name="${cp.id}" value="${opt.level}" /> ${opt.text}`;
+      label.addEventListener("click", () => {
+        opts.querySelectorAll(".opt").forEach((o) => o.classList.remove("active"));
+        label.classList.add("active");
+        state.answers[cp.id] = opt.level;
+        updateScoreBtn();
+      });
+      opts.appendChild(label);
+    });
+    questionsEl.appendChild(q);
+  });
+  updateScoreBtn();
+}
+
+function updateScoreBtn() {
+  scoreBtn.disabled = Object.keys(state.answers).length !== CHECKPOINTS.length;
+}
+
+/* =========================================================
+   7. SCORING
+   ========================================================= */
+function calculateScore() {
+  let penalty = 0;
+  CHECKPOINTS.forEach((cp) => {
+    const level = state.answers[cp.id] ?? 0;
+    penalty += level * cp.weight;
+  });
+  return Math.max(0, Math.round(100 - penalty));
+}
+
+function verdict(score) {
+  if (score >= 80) return { label: "Low friction", cls: "good", color: "#1a7f37", bar: "#3fb950",
+    text: "Your signup flow is lean. Focus on micro-optimisations and A/B testing." };
+  if (score >= 50) return { label: "Moderate friction", cls: "mid", color: "#7d4e00", bar: "#d29922",
+    text: "You are leaving activation on the table. Fixing the top 2 items below could lift signup completion 15–30%." };
+  return { label: "High friction", cls: "bad", color: "#cf222e", bar: "#f85149",
+    text: "Your signup flow is bleeding users. Address the top 3 fixes below in this order before anything else." };
+}
+
+function buildTopFixes() {
+  const ranked = CHECKPOINTS
+    .map((cp) => ({ cp, friction: (state.answers[cp.id] ?? 0) * cp.weight }))
+    .filter((r) => r.friction > 0)
+    .sort((a, b) => b.friction - a.friction)
+    .slice(0, 5);
+
+  if (ranked.length === 0) {
+    return CHECKPOINTS.slice(0, 5).map((cp) => ({ title: cp.fixTitle, detail: cp.fixDetail }));
+  }
+  const seen = new Set(ranked.map((r) => r.cp.id));
+  for (const cp of CHECKPOINTS) {
+    if (ranked.length >= 5) break;
+    if (!seen.has(cp.id)) {
+      ranked.push({ cp, friction: 0 });
+      seen.add(cp.id);
+    }
+  }
+  return ranked.slice(0, 5).map((r) => ({ title: r.cp.fixTitle, detail: r.cp.fixDetail }));
+}
+
+/* =========================================================
+   8. RENDER RESULT
+   ========================================================= */
+function renderResult() {
+  const score = calculateScore();
+  const v = verdict(score);
+  const fixes = buildTopFixes();
+
+  $("dash-domain").textContent = state.domain;
+  $("dash-date").textContent = "Audited " + new Date().toLocaleDateString(undefined, {
+    year: "numeric", month: "short", day: "numeric"
+  });
+
+  const badge = $("dash-badge");
+  badge.textContent = v.label;
+  badge.className = "badge " + v.cls;
+
+  $("dash-score").innerHTML = `${score}<small>/100</small>`;
+  const bar = $("dash-bar");
+  bar.style.width = score + "%";
+  bar.style.background = v.bar;
+  $("dash-verdict").textContent = v.text;
+
+  const fixesEl = $("dash-fixes");
+  fixesEl.innerHTML = "";
+  fixes.forEach((f, i) => {
+    const row = document.createElement("div");
+    row.className = "fix";
+    row.innerHTML = `
+      <div class="fix-num">${i + 1}</div>
+      <div class="fix-text">
+        <strong>${f.title}</strong>
+        <span>${f.detail}</span>
+      </div>
+    `;
+    fixesEl.appendChild(row);
+  });
+
+  // FIX #1: mailto now goes to your real inbox.
+  // Also includes the captured email in the body so you have it even if FormSubmit failed.
+  const subject = encodeURIComponent(`Fix my activation score (${score}/100) — ${state.domain}`);
+  const top3 = fixes.slice(0, 3).map((f, i) => `${i + 1}. ${f.title}`).join("\n");
+  const body = encodeURIComponent(
+    `Hi,\n\nMy Activation Friction Score for ${state.domain} is ${score}/100.\n\nMy email: ${state.email}\nSignup URL: ${state.url}\n\nTop 3 fixes I want help with:\n${top3}\n\nCan you help me fix these?\n\nThanks!`
+  );
+  $("mailto-link").href = `mailto:lifepowersource@gmail.com?subject=${subject}&body=${body}`;
+}
+
+/* =========================================================
+   9. PDF EXPORT
+   ========================================================= */
+async function downloadPDF() {
+  const el = $("dashboard-result");
+  const originalBtnText = downloadBtn.textContent;
+  downloadBtn.disabled = true;
+  downloadBtn.textContent = "Generating PDF…";
+
+  const mailto = $("mailto-link");
+  const prevDisplay = mailto.style.display;
+  mailto.style.display = "none";
+
+  try {
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: `activation-friction-score-${state.domain.replace(/[^a-z0-9.-]/gi, "_")}.pdf`,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", scrollY: 0 },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
+      pagebreak: { mode: ["avoid-all", "css", "legacy"] }
+    };
+    await html2pdf().set(opt).from(el).save();
+  } catch (err) {
+    console.error(err);
+    alert("PDF generation failed. Please try again, or use your browser's Print → Save as PDF.");
+  } finally {
+    mailto.style.display = prevDisplay;
+    downloadBtn.disabled = false;
+    downloadBtn.textContent = originalBtnText;
+  }
+}
+
+/* =========================================================
+   10. WIRING
+   ========================================================= */
+urlForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const parsed = parseUrl(urlInput.value);
+  const email = emailInput.value.trim();
+
+  // Validate URL
+  if (!parsed) {
+    urlInput.classList.add("error");
+    urlErr.style.display = "block";
+    return;
+  }
+  urlInput.classList.remove("error");
+  urlErr.style.display = "none";
+
+  // Validate email
+  if (!isValidEmail(email)) {
+    emailInput.classList.add("error");
+    emailErr.style.display = "block";
+    return;
+  }
+  emailInput.classList.remove("error");
+  emailErr.style.display = "none";
+
+  state.url = parsed.href;
+  state.domain = parsed.hostname.replace(/^www\./, "");
+  state.email = email;
+  state.answers = {};
+
+  // FIX #3: real lead capture (non-blocking)
+  captureEmail(email, state.url);
+
+  $("quiz-domain").textContent = state.domain;
+  landing.style.display = "none";
+  quizEl.style.display = "block";
+  renderQuiz();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+backBtn.addEventListener("click", () => {
+  quizEl.style.display = "none";
+  landing.style.display = "block";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+scoreBtn.addEventListener("click", () => {
+  quizEl.style.display = "none";
+  resultEl.style.display = "block";
+  renderResult();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+downloadBtn.addEventListener("click", downloadPDF);
+
+restartBtn.addEventListener("click", () => {
+  resultEl.style.display = "none";
+  landing.style.display = "block";
+  urlInput.value = "";
+  emailInput.value = "";
+  state.answers = {};
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+</script>
+</body>
+</html>
